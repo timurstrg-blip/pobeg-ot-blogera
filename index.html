@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>Побег от Блогера 🏃‍♂️🤳</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b0e14;font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;color:#fff;user-select:none}
+  #game{position:fixed;inset:0;display:block;background:#0b0e14;touch-action:none}
+  #hud{position:fixed;top:0;left:0;right:0;display:flex;gap:8px;padding:10px;pointer-events:none;z-index:5;align-items:stretch;justify-content:space-between}
+  .pill{background:rgba(10,14,22,.78);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:8px 12px;font-size:14px;font-weight:700;backdrop-filter:blur(6px);white-space:nowrap}
+  .pill small{display:block;font-weight:500;font-size:11px;color:#9fb0c8}
+  #danger{transition:.2s}
+  #danger.hot{background:rgba(180,20,40,.9);border-color:#ff6b6b;animation:pulse .5s infinite alternate}
+  @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.06)}}
+  #stam{width:110px;height:8px;background:#222a36;border-radius:6px;overflow:hidden;margin-top:6px}
+  #stam>i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#37e05b,#a6ff7a)}
+  #overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(0,0,0,.55),rgba(0,0,0,.9));z-index:10;padding:16px}
+  #card{max-width:560px;width:100%;background:#111725;border:1px solid #2a3550;border-radius:20px;padding:28px;text-align:center;box-shadow:0 20px 80px rgba(0,0,0,.6)}
+  #card h1{margin:0 0 4px;font-size:clamp(28px,6vw,44px);letter-spacing:1px}
+  #card h1 span{background:linear-gradient(90deg,#ffd75e,#ff5a7a);-webkit-background-clip:text;background-clip:text;color:transparent}
+  #card p{color:#b9c4d6;font-size:14px;line-height:1.6;margin:8px 0}
+  #card kbd{background:#222c40;border:1px solid #3a4a6b;border-bottom-width:3px;border-radius:6px;padding:1px 7px;font-size:12px;color:#fff;font-family:inherit}
+  #btn{background:linear-gradient(90deg,#ffd75e,#ff9d5c);border:0;border-radius:12px;padding:14px 26px;font-weight:900;font-size:17px;cursor:pointer;color:#111;margin-top:12px;width:100%}
+  #btn:hover{filter:brightness(1.07)}
+  #btn:active{transform:scale(.98)}
+  .row{display:flex;gap:8px;margin-top:10px}
+  .stat{background:#0d1320;border:1px solid #26314d;border-radius:12px;padding:10px;flex:1}
+  .stat b{font-size:20px;display:block}
+  .stat span{font-size:11px;color:#9fb0c8}
+  #toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;z-index:6}
+  .toast{background:#111725;border:1px solid #33415f;color:#fff;padding:8px 16px;border-radius:999px;font-size:13px;font-weight:700;animation:pop .25s ease}
+  @keyframes pop{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+  #vign{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;transition:opacity .25s;background:radial-gradient(ellipse at center,transparent 45%,rgba(255,30,60,.55) 100%)}
+  #flash{position:fixed;inset:0;pointer-events:none;z-index:7;background:#fff;opacity:0}
+  #joy{position:fixed;left:18px;bottom:18px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.2);z-index:8;display:none;touch-action:none}
+  #stick{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;background:rgba(255,215,94,.9)}
+  #sprintBtn{position:fixed;right:18px;bottom:30px;width:84px;height:84px;border-radius:50%;background:rgba(55,224,91,.2);border:2px solid #37e05b;color:#fff;font-weight:900;font-size:13px;z-index:8;display:none}
+  #muteBtn{position:fixed;right:10px;top:64px;z-index:9;background:rgba(10,14,22,.78);border:1px solid rgba(255,255,255,.14);color:#fff;border-radius:10px;padding:8px 10px;cursor:pointer;font-size:16px}
+  @media (pointer:coarse){#joy{display:block}#sprintBtn{display:block}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="vign"></div>
+<div id="flash"></div>
+<div id="hud" style="display:none">
+  <div class="pill">⏱ <span id="time">0.0</span>с<small>выживание</small></div>
+  <div class="pill">❤️ <span id="likes">0</span><small>лайки</small></div>
+  <div class="pill">⚡ <div id="stam"><i id="stamBar"></i></div><small>shift — рывок</small></div>
+  <div class="pill" id="danger">🤳 <span id="dist">—</span>м<small>блогер рядом?</small></div>
+</div>
+<button id="muteBtn" title="звук">🔊</button>
+<div id="toast"></div>
+<div id="joy"><div id="stick"></div></div>
+<button id="sprintBtn">РЫВОК</button>
+<div id="overlay">
+  <div id="card">
+    <h1>ПОБЕГ <span>ОТ БЛОГЕРА</span> 🤳</h1>
+    <p>Блогер с камерой охотится за тобой ради хайпа.<br>Уворачивайся, собирай <b>❤️ лайки</b>, хватай <b>☕ энергетики</b> и <b>🕶 маскировку</b>.</p>
+    <p><kbd>WASD</kbd> / <kbd>←↑↓→</kbd> — бежать · <kbd>Shift</kbd> — рывок · на телефоне — джойстик</p>
+    <p style="font-size:12px;opacity:.8">Если блогер дотронется — ты в его влоге. Не дай себя снять! Через каждую минуту — новый фанат 🏃</p>
+    <div class="row">
+      <div class="stat"><b id="bestTime">0с</b><span>лучшее время</span></div>
+      <div class="stat"><b id="bestLikes">0</b><span>макс. лайков</span></div>
+    </div>
+    <button id="btn">▶ НАЧАТЬ ПОБЕГ</button>
+  </div>
+</div>
+<script>
+"use strict";
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d');
+const hud = document.getElementById('hud');
+const overlay = document.getElementById('overlay');
+const card = document.getElementById('card');
+const btn = document.getElementById('btn');
+const timeEl = document.getElementById('time');
+const likesEl = document.getElementById('likes');
+const distEl = document.getElementById('dist');
+const dangerEl = document.getElementById('danger');
+const stamBar = document.getElementById('stamBar');
+const toastBox = document.getElementById('toast');
+const vign = document.getElementById('vign');
+const flashEl = document.getElementById('flash');
+const muteBtn = document.getElementById('muteBtn');
+
+function resize(){ cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; cv.style.width = innerWidth+'px'; cv.style.height = innerHeight+'px'; ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+addEventListener('resize', resize); resize();
+
+// --- audio ---
+let AC = null, muted = false;
+muteBtn.onclick = ()=>{ muted=!muted; muteBtn.textContent = muted?'🔇':'🔊'; };
+function beep(freq, dur, type, vol, slide){
+  if(muted) return;
+  try{
+    AC = AC || new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==='suspended') AC.resume();
+    const o=AC.createOscillator(), g=AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    o.type=type||'square'; o.frequency.setValueAtTime(freq, AC.currentTime);
+    if(slide) o.frequency.exponentialRampToValueAtTime(slide, AC.currentTime+dur);
+    g.gain.setValueAtTime(vol||.12, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001, AC.currentTime+dur);
+    o.start(); o.stop(AC.currentTime+dur);
+  }catch(e){}
+}
+const sfx = {
+  like(){ beep(700,.12,'sine',.15,1200); },
+  boost(){ beep(300,.3,'sawtooth',.12,900); },
+  hide(){ beep(500,.25,'triangle',.14,200); },
+  caught(){ [400,300,200,120].forEach((f,i)=>setTimeout(()=>beep(f,.25,'sawtooth',.16),i*140)); },
+  flash(){ beep(1200,.08,'square',.08,300); },
+};
+
+function toast(msg, ms){
+  const d=document.createElement('div'); d.className='toast'; d.textContent=msg;
+  toastBox.appendChild(d); setTimeout(()=>d.remove(), ms||2200);
+  while(toastBox.children.length>3) toastBox.firstChild.remove();
+}
+
+// --- state ---
+const W = 2200, H = 2200;
+let G = null;
+const phrases = ['СНИМАЮЮЮ! 📸','Это будет в влоге! 🎬','Поставь лайк! ❤️','Эй, подписчики, он тут! 🔴 LIVE','Стой, это пранк! 😎','Ты уже в стриме! 📱','Догоню ради хайпа! 🔥'];
+const catchPhrases = ['ПОПАЛСЯ! Ты в влоге 😂','ЗАСНЯЛ! Лайкосик ❤️','Стрим удался! 🔴'];
+
+function rand(a,b){ return a + Math.random()*(b-a); }
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+
+function makeObstacles(){
+  const obs=[];
+  // border handled separately; scatter houses/trees
+  for(let i=0;i<70;i++){
+    const w=rand(60,180), h=rand(60,180);
+    const x=rand(60,W-60-w), y=rand(60,H-60-h);
+    // keep center spawn area clear
+    if(Math.hypot(x+w/2-W/2, y+h/2-H/2)<250) continue;
+    obs.push({x,y,w,h, park:Math.random()<.4});
+  }
+  return obs;
+}
+function collideCircle(x,y,r){
+  for(const o of G.obs){
+    const cx=Math.max(o.x,Math.min(x,o.x+o.w));
+    const cy=Math.max(o.y,Math.min(y,o.y+o.h));
+    if(Math.hypot(x-cx,y-cy)<r) return o;
+  }
+  return null;
+}
+function moveWithCollide(e, dx, dy, r){
+  let nx=e.x+dx;
+  if(nx>r && nx<W-r && !collideCircle(nx,e.y,r)) e.x=nx;
+  let ny=e.y+dy;
+  if(ny>r && ny<H-r && !collideCircle(e.x,ny,r)) e.y=ny;
+}
+
+function spawnPickup(type){
+  for(let t=0;t<20;t++){
+    const x=rand(80,W-80), y=rand(80,H-80);
+    if(collideCircle(x,y,24)) continue;
+    if(Math.hypot(x-G.p.x,y-G.p.y)<200) continue;
+    G.pickups.push({x,y,type,bob:Math.random()*6});
+    return;
+  }
+}
+
+function spawnChaser(x,y,speed,emoji,name){
+  return {x,y,speed,emoji:emoji||'🤳',name:name||'БЛОГЕР',phrase:'',phraseT:0,flashCd:rand(2,5),stuck:0,px:x,py:y};
+}
+
+function reset(){
+  const obs = makeObstacles();
+  G = {
+    obs, over:false, won:false, t:0, likes:0,
+    p:{x:W/2,y:H/2,r:16,speed:265,sprint:390,stam:100,boost:0,invis:0,face:1,step:0,moving:false},
+    chasers:[spawnChaser(W/2, H/2-420, 208,'🤳','БЛОГЕР')],
+    pickups:[], keys:{}, cam:{x:W/2,y:H/2}, shake:0, flashT:0,
+    spawnT:0, likeT:0, diffT:0, fanCount:0,
+    joy:{x:0,y:0,active:false}, sprintTouch:false,
+  };
+  G.obs = obs;
+  for(let i=0;i<14;i++) spawnPickup(['like','like','like','boost','hide'][Math.floor(Math.random()*5)]);
+}
+
+function start(){
+  reset();
+  overlay.style.display='none'; hud.style.display='flex';
+  toast('Беги! Блогер уже снимает 🔴');
+  beep(440,.2,'square',.12,880);
+}
+
+// --- input ---
+addEventListener('keydown', e=>{
+  if(G) G.keys[e.code]=true;
+  if(e.code==='Space') e.preventDefault();
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+  if(e.code==='Enter' && G && G.over) start();
+});
+addEventListener('keyup', e=>{ if(G) G.keys[e.code]=false; });
+btn.onclick = start;
+
+// joystick
+const joy=document.getElementById('joy'), stick=document.getElementById('stick');
+let joyId=null, joyCx=0, joyCy=0;
+joy.addEventListener('touchstart', e=>{ e.preventDefault(); const t=e.changedTouches[0]; joyId=t.identifier; const r=joy.getBoundingClientRect(); joyCx=r.left+60; joyCy=r.top+60; },{passive:false});
+addEventListener('touchmove', e=>{
+  for(const t of e.changedTouches){ if(t.identifier===joyId){
+    let dx=t.clientX-joyCx, dy=t.clientY-joyCy;
+    const l=Math.hypot(dx,dy)||1, max=45;
+    if(l>max){dx=dx/l*max;dy=dy/l*max;}
+    stick.style.left=(35+dx)+'px'; stick.style.top=(35+dy)+'px';
+    if(G){G.joy.x=dx/max;G.joy.y=dy/max;G.joy.active=true;}
+  }}
+},{passive:false});
+addEventListener('touchend', e=>{
+  for(const t of e.changedTouches){ if(t.identifier===joyId){ joyId=null; stick.style.left='35px'; stick.style.top='35px'; if(G){G.joy.x=0;G.joy.y=0;G.joy.active=false;} } }
+});
+const sprintBtn=document.getElementById('sprintBtn');
+sprintBtn.addEventListener('touchstart',e=>{e.preventDefault(); if(G)G.sprintTouch=true;},{passive:false});
+sprintBtn.addEventListener('touchend',e=>{e.preventDefault(); if(G)G.sprintTouch=false;},{passive:false});
+
+// --- update ---
+let last=performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  let dt=Math.min(.05,(now-last)/1000); last=now;
+  if(!G || G.over){ render(now/1000); return; }
+  G.t+=dt;
+  const p=G.p;
+
+  // input dir
+  let ix=((G.keys.KeyD||G.keys.ArrowRight)?1:0)-((G.keys.KeyA||G.keys.ArrowLeft)?1:0);
+  let iy=((G.keys.KeyS||G.keys.ArrowDown)?1:0)-((G.keys.KeyW||G.keys.ArrowUp)?1:0);
+  if(G.joy.active){ ix=G.joy.x; iy=G.joy.y; }
+  let l=Math.hypot(ix,iy);
+  if(l>1){ix/=l;iy/=l;l=1;}
+  p.moving=l>.1;
+  if(p.moving){ p.step+=dt*10; if(Math.abs(ix)>.2) p.face=Math.sign(ix); }
+
+  const wantSprint=(G.keys.ShiftLeft||G.keys.ShiftRight||G.sprintTouch||G.keys.Space)&&p.moving;
+  let sp=p.speed;
+  if(p.boost>0){ p.boost-=dt; sp*=1.55; }
+  if(wantSprint&&p.stam>1){ sp=p.sprint*(p.boost>0?1.2:1); p.stam=Math.max(0,p.stam-dt*32); }
+  else p.stam=Math.min(100,p.stam+dt*20);
+  if(p.invis>0) p.invis-=dt;
+
+  moveWithCollide(p, ix*sp*dt, iy*sp*dt, p.r);
+
+  // difficulty: blogger speeds up
+  G.diffT+=dt;
+  const targetSpeed=Math.min(330, 208 + G.t*1.15);
+  for(const c of G.chasers) c.speed=targetSpeed*(c.name==='БЛОГЕР'?1:.88);
+
+  // chasers AI (pursuit + unstick)
+  for(const c of G.chasers){
+    let tx=p.x, ty=p.y;
+    if(p.invis>0){ // wander when player invisible
+      c.phrase='Где он?! 🤔'; c.phraseT=1;
+      const a=Math.atan2(c.y-H/2,c.x-W/2)+Math.sin(G.t+c.x)*.02;
+      tx=c.x+Math.cos(a)*300; ty=c.y+Math.sin(a)*300;
+    }
+    const dx=tx-c.x, dy=ty-c.y, d=Math.hypot(dx,dy)||1;
+    const vx=dx/d*c.speed, vy=dy/d*c.speed;
+    const ox=c.x, oy=c.y;
+    moveWithCollide(c, vx*dt, vy*dt, 18);
+    // unstick: if barely moved, sidestep
+    if(Math.hypot(c.x-ox,c.y-oy)<c.speed*dt*.25){ c.stuck+=dt; moveWithCollide(c, -vy*dt*.9+rand(-40,40)*dt, vx*dt*.9+rand(-40,40)*dt, 18); }
+    else c.stuck=Math.max(0,c.stuck-dt);
+    // funny phrases
+    c.phraseT-=dt;
+    if(c.phraseT<=0 && d<520 && p.invis<=0){ c.phrase=phrases[Math.floor(Math.random()*phrases.length)]; c.phraseT=rand(1.6,3.2); }
+    // camera flash when close
+    c.flashCd-=dt;
+    if(d<260 && c.flashCd<=0 && p.invis<=0){
+      c.flashCd=rand(3,6); G.flashT=.12; sfx.flash();
+      flashEl.style.opacity=.85; setTimeout(()=>flashEl.style.opacity=0,120);
+    }
+    // catch?
+    if(p.invis<=0 && d<34) return gameOver(c);
+  }
+
+  // pickups
+  G.likeT+=dt; G.spawnT+=dt;
+  if(G.likeT>1.1){ G.likeT=0; if(G.pickups.length<16 && Math.random()<.7) spawnPickup('like'); }
+  if(G.spawnT>6){ G.spawnT=0; spawnPickup(Math.random()<.5?'boost':'hide'); }
+  for(let i=G.pickups.length-1;i>=0;i--){
+    const k=G.pickups[i]; k.bob+=dt*4;
+    if(Math.hypot(p.x-k.x,p.y-k.y)<30){
+      G.pickups.splice(i,1);
+      if(k.type==='like'){ G.likes++; sfx.like(); }
+      if(k.type==='boost'){ p.boost=4; sfx.boost(); toast('☕ Энергетик! Скорость x1.5'); }
+      if(k.type==='hide'){ p.invis=3.5; sfx.hide(); toast('🕶 Маскировка! Он тебя потерял'); }
+    }
+  }
+
+  // new fan every 45s
+  if(G.t>45*(G.fanCount+1)){
+    G.fanCount++;
+    const a=Math.random()*Math.PI*2;
+    G.chasers.push(spawnChaser(
+      Math.max(60,Math.min(W-60,p.x+Math.cos(a)*600)),
+      Math.max(60,Math.min(H-60,p.y+Math.sin(a)*600)),
+      targetSpeed*.88,'🤓','ФАНАТ'));
+    toast('⚠️ Новый фанат присоединился к погоне!');
+    beep(200,.4,'sawtooth',.14,600);
+  }
+
+  // camera + hud
+  G.cam.x += (p.x-G.cam.x)*Math.min(1,dt*5);
+  G.cam.y += (p.y-G.cam.y)*Math.min(1,dt*5);
+  const nd=Math.min(...G.chasers.map(c=>dist(p,c)));
+  timeEl.textContent=G.t.toFixed(1);
+  likesEl.textContent=G.likes;
+  distEl.textContent=Math.round(nd);
+  stamBar.style.width=p.stam+'%';
+  const hot=nd<220&&p.invis<=0;
+  dangerEl.classList.toggle('hot',hot);
+  vign.style.opacity=hot?Math.max(.4,1-nd/260):0;
+  if(G.flashT>0)G.flashT-=dt;
+  G.shake=Math.max(0,(G.shake||0)-dt*3);
+
+  render(now/1000);
+}
+
+function gameOver(c){
+  G.over=true; sfx.caught();
+  G.shake=1;
+  const t=G.t, lk=G.likes;
+  const bt=parseFloat(localStorage.getItem('blog_best_time')||0);
+  const bl=parseInt(localStorage.getItem('blog_best_likes')||0);
+  if(t>bt)localStorage.setItem('blog_best_time',t.toFixed(1));
+  if(lk>bl)localStorage.setItem('blog_best_likes',lk);
+  const isRecord=t>=bt&&t>0;
+  setTimeout(()=>{
+    overlay.style.display='flex'; hud.style.display='none'; vign.style.opacity=0;
+    card.innerHTML =
+      '<h1>ЗАСНЯЛ! 📸</h1>'+
+      '<p><b>'+c.name+'</b> догнал тебя: «'+(catchPhrases[Math.floor(Math.random()*catchPhrases.length)])+'»</p>'+
+      '<div class="row"><div class="stat"><b>'+t.toFixed(1)+'с</b><span>выжил</span></div>'+
+      '<div class="stat"><b>❤️ '+lk+'</b><span>лайков</span></div>'+
+      '<div class="stat"><b>'+G.fanCount+' фанатов</b><span>гналось</span></div></div>'+
+      (isRecord?'<p>🏆 <b>Новый рекорд!</b></p>':'<p style="font-size:12px">Рекорд: '+Math.max(bt,t).toFixed(1)+'с · ❤️ '+Math.max(bl,lk)+'</p>')+
+      '<button id="btn">↻ БЕЖАТЬ СНОВА</button>';
+    document.getElementById('btn').onclick=start;
+  },650);
+}
+
+// --- render ---
+function render(ts){
+  const vw=innerWidth, vh=innerHeight;
+  ctx.fillStyle='#0b0e14'; ctx.fillRect(0,0,vw,vh);
+  if(!G) return;
+  let sx=0, sy=0;
+  if(G.shake>0){ sx=rand(-1,1)*8*G.shake; sy=rand(-1,1)*8*G.shake; }
+  const ox=G.cam.x-vw/2+sx, oy=G.cam.y-vh/2+sy;
+
+  // grass grid
+  ctx.fillStyle='#111927'; ctx.fillRect(-ox,-oy,W,H);
+  ctx.strokeStyle='rgba(255,255,255,.05)'; ctx.lineWidth=1;
+  const gs=110;
+  ctx.beginPath();
+  for(let x=Math.floor(ox/gs)*gs;x<ox+vw+gs;x+=gs){ctx.moveTo(x-ox,0-oy%H);ctx.moveTo(x-ox,-oy);ctx.lineTo(x-ox,H-oy);}
+  for(let y=Math.floor(oy/gs)*gs;y<oy+vh+gs;y+=gs){ctx.moveTo(0-ox,y-oy);ctx.lineTo(W-ox,y-oy);}
+  ctx.stroke();
+
+  // world border
+  ctx.strokeStyle='#ffd75e'; ctx.lineWidth=6; ctx.setLineDash([18,12]);
+  ctx.strokeRect(-ox,-oy,W,H); ctx.setLineDash([]);
+
+  // obstacles
+  for(const o of G.obs){
+    if(o.x-ox>vw||o.y-oy>vh||o.x+o.w-ox<0||o.y+o.h-oy<0) continue;
+    ctx.fillStyle=o.park?'#16351f':'#232f4a';
+    roundRect(o.x-ox,o.y-oy,o.w,o.h,10); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.12)'; ctx.lineWidth=2; ctx.stroke();
+    ctx.font='26px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(o.park?'🌳':'🏠', o.x+o.w/2-ox, o.y+o.h/2-oy);
+  }
+
+  // pickups
+  for(const k of G.pickups){
+    const bobY=Math.sin(k.bob)*4;
+    const em=k.type==='like'?'❤️':k.type==='boost'?'☕':'🕶';
+    // glow
+    ctx.fillStyle=k.type==='like'?'rgba(255,90,122,.18)':k.type==='boost'?'rgba(255,180,60,.2)':'rgba(120,160,255,.2)';
+    ctx.beginPath(); ctx.arc(k.x-ox,k.y-oy+bobY,20,0,7); ctx.fill();
+    ctx.font='26px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(em,k.x-ox,k.y-oy+bobY);
+  }
+
+  // van / safe zone joke: "дом" where you can rest? draw finish flag at corner
+  // player shadow + body
+  drawPerson(G.p.x-ox, G.p.y-oy, '🧍', G.p.invis>0, G.p.boost>0, G.p.step, 'ТЫ');
+
+  // chasers
+  for(const c of G.chasers){
+    const enraged = dist(G.p,c)<220;
+    // vision cone / alert ring
+    if(enraged&&G.p.invis<=0){
+      ctx.strokeStyle='rgba(255,60,80,.5)'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(c.x-ox,c.y-oy,30+Math.sin(ts*6)*4,0,7); ctx.stroke();
+    }
+    drawPerson(c.x-ox, c.y-oy, c.emoji==='🤳'?'🤳':'🤓', false, enraged, ts*6, c.name);
+    // phone light
+    ctx.fillStyle='rgba(255,255,255,.85)';
+    ctx.fillRect(c.x-ox+14, c.y-oy-26, 8, 12);
+    if(c.phraseT>0&&c.phrase){
+      ctx.font='bold 13px Inter,Arial'; const w=ctx.measureText(c.phrase).width+16;
+      ctx.fillStyle='rgba(255,255,255,.95)'; roundRect(c.x-ox-w/2,c.y-oy-64,w,26,13); ctx.fill();
+      ctx.fillStyle='#111'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(c.phrase,c.x-ox,c.y-oy-50);
+    }
+  }
+
+  // invis timer ring
+  if(G.p.invis>0){
+    ctx.fillStyle='#fff'; ctx.font='bold 14px Inter,Arial'; ctx.textAlign='center';
+    ctx.fillText('🕶 '+G.p.invis.toFixed(1), G.p.x-ox, G.p.y-oy-42);
+  }
+  if(G.p.boost>0){
+    ctx.fillStyle='#ffd75e'; ctx.font='bold 14px Inter,Arial'; ctx.textAlign='center';
+    ctx.fillText('☕ '+G.p.boost.toFixed(1), G.p.x-ox, G.p.y-oy+(G.p.invis>0?-58:-42));
+  }
+}
+
+function drawPerson(x,y,emoji,ghost,rage,step,label){
+  ctx.globalAlpha=ghost?.45:1;
+  ctx.fillStyle='rgba(0,0,0,.35)';
+  ctx.beginPath(); ctx.ellipse(x,y+20,16,6,0,0,7); ctx.fill();
+  const hop=Math.sin(step)*3;
+  ctx.font=(rage?44:40)+'px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(emoji,x,y+hop);
+  ctx.font='bold 11px Inter,Arial';
+  ctx.fillStyle=label==='ТЫ'?'#7dff9b':'#ff8fa0';
+  ctx.fillText(label,x,y+34);
+  ctx.globalAlpha=1;
+}
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+document.getElementById('bestTime').textContent=(parseFloat(localStorage.getItem('blog_best_time')||0)).toFixed(1)+'с';
+document.getElementById('bestLikes').textContent=localStorage.getItem('blog_best_likes')||0;
+reset();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
